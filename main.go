@@ -94,7 +94,6 @@ func main() {
 	cron := cron.New()
 	cron.AddFunc(opts.UpdateTime, func() {
 		if err := conf.Run(); err != nil {
-			fmt.Println(err)
 			log.Fatalf("Error: %v\n", err)
 		}
 	})
