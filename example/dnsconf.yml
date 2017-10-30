@@ -1,0 +1,19 @@
+---
+
+default:
+  resourceGroup: your-dns-resource-group
+  zone: your-azure.zone
+  ttl: 60
+
+entries:
+  - name: foo.example.com
+    azure:
+      name: example-barfoo
+  - name: foo.example.com
+    azure:
+      name: example-foobar
+      resourceGroup: other-dns-resource-group
+      zone: other-azure.zone
+      ttl: 120
+    dns:
+      - 8.8.4.4

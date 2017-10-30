@@ -1,0 +1,6 @@
+/gosync
+/build/
+/.idea
+/gosync.yml
+/*.json
+/go-azure-dns-sync
