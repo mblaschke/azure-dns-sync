@@ -39,12 +39,16 @@ type DnsConfiguration struct {
 		Ttl int64 `yaml:"ttl"`
 	}
 
+	UpdateTime string `yaml:"updateTime"`
+
 	azureClient dns.RecordSetsClient `yaml:"-"`
 }
 
 // create new dns configuration object
 // and parse yaml file
 func (conf *DnsConfiguration) ReadFromConfig(path string) (error error) {
+	log.Println(fmt.Sprintf("Parsing DNS configuration from %s", path))
+
 	// read yaml file
 	ymlData, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -57,6 +61,8 @@ func (conf *DnsConfiguration) ReadFromConfig(path string) (error error) {
 		error = err
 		return
 	}
+
+	log.Println(fmt.Sprintf(" * found entries %v", len(conf.Entries)))
 
 	// process entries
 	for key, entry := range conf.Entries {
@@ -75,8 +81,8 @@ func (conf *DnsConfiguration) ReadFromConfig(path string) (error error) {
 			entry.Azure.Ttl = conf.Default.Ttl
 		}
 
-		if conf.Entries[key].Name == "" {
-			error = errors.New("Name cannot be empty")
+		if entry.Name == "" {
+			error = errors.New("name cannot be empty")
 			return
 		}
 
@@ -107,6 +113,8 @@ func (conf *DnsConfiguration) ReadFromConfig(path string) (error error) {
 			entry.resolver = defaultResolver
 		}
 
+		log.Println(fmt.Sprintf(" * registering \"%s\" -> \"%s.%s\"", entry.Name, entry.Azure.Name, entry.Azure.Zone))
+
 		// update entry
 		conf.Entries[key] = entry
 	}
@@ -122,7 +130,7 @@ func (conf *DnsConfiguration) SetAzureClient(client dns.RecordSetsClient) {
 // execute update run loop
 func (conf *DnsConfiguration) Run() (error error) {
 	for _, entry := range conf.Entries {
-		log.Println(fmt.Sprintf("Processing %s (%s in zone %s)", entry.Name, entry.Azure.Name, entry.Azure.Zone))
+		log.Println(fmt.Sprintf(" * processing %s (%s in zone %s)", entry.Name, entry.Azure.Name, entry.Azure.Zone))
 
 		if err := entry.Execute(conf.azureClient); err != nil {
 			error = err
@@ -141,10 +149,10 @@ func (entry *DnsConfigurationItem) Execute(azureClient dns.RecordSetsClient) (er
 		return
 	}
 
-	log.Println(fmt.Sprintf("   updating Azure DNS record %s in zone %s (RG:%s)", entry.Azure.Name, entry.Azure.Zone, entry.Azure.ResourceGroup))
+	log.Println(fmt.Sprintf("    - updating Azure DNS record %s in zone %s (RG:%s)", entry.Azure.Name, entry.Azure.Zone, entry.Azure.ResourceGroup))
 	_, err = azureClient.CreateOrUpdate(entry.Azure.ResourceGroup, entry.Azure.Zone, entry.Azure.Name, dns.A, recordSet, "", "")
 	if err != nil {
-		log.Fatalf("Error creating DNS record: %s, %v", entry.Azure.Zone, err)
+		log.Fatalf("[ERROR] failed creating DNS record: %s, %v", entry.Azure.Zone, err)
 		return
 	}
 	return
@@ -180,13 +188,13 @@ func (entry *DnsConfigurationItem) buildAzureDnsEntry() (recordSet dns.RecordSet
 
 // lookup hostname using resolver
 func (entry *DnsConfigurationItem) lookup() (addressList []net.IP, error error) {
-	log.Println(fmt.Sprintf("   resolving %s using %v", entry.Name, entry.resolver.Servers))
+	log.Println(fmt.Sprintf("    - resolving %s using %v", entry.Name, entry.resolver.Servers))
 	addressList, err := entry.resolver.LookupHost(entry.Name)
 	if err != nil {
 		error = err
 		return
 	}
 
-	log.Println(fmt.Sprintf("   resolved %s to %v", entry.Name, addressList))
+	log.Println(fmt.Sprintf("    - resolved %s to %v", entry.Name, addressList))
 	return
 }

@@ -18,11 +18,11 @@ Create deployment:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-   Name: azure-dns-sync-config
+   name: azure-dns-sync-config
 data:
   config.yml: |
     ---
-    
+    updateTime: "@every 10m"
     default:
       resourceGroup: your-dns-resource-group
       zone: your-azure.zone

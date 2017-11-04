@@ -15,7 +15,7 @@ const (
 	// application informations
 	Name    = "go-azure-dns-sync"
 	Author  = "Markus Blaschke"
-	Version = "0.1.0"
+	Version = "0.2.0"
 )
 
 var (
@@ -64,6 +64,9 @@ func main() {
 		}
 	}()
 
+	// run cron
+	log.Printf("Starting %s daemon version %v\n", Name, Version)
+
 	// signal channel (listen on SIGINT, SIGTERM and SIGHUP)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT)
@@ -75,12 +78,12 @@ func main() {
 	// Init azure configuration
 	azureConf := AzureConfiguration{}
 	if err := azureConf.ReadFromConfig(opts.AzureConfig); err != nil {
-		log.Fatalf("Error: %v\n", err)
+		log.Fatalf("[ERROR] %v\n", err)
 	}
 
 	rc, err := azureConf.GetClient()
 	if err != nil {
-		log.Fatalf("Error: %v\n", err)
+		log.Fatalf("[ERROR] %v\n", err)
 	}
 
 	// read dns configuration
@@ -90,20 +93,31 @@ func main() {
 	}
 	conf.SetAzureClient(rc)
 
-	// create cron
-	cron := cron.New()
-	cron.AddFunc(opts.UpdateTime, func() {
-		if err := conf.Run(); err != nil {
-			log.Fatalf("Error: %v\n", err)
-		}
-	})
+	// overwrite update time from configuration
+	if conf.UpdateTime != "" {
+		opts.UpdateTime = conf.UpdateTime
+	}
 
-	// run cron
-	log.Printf("Starting %s daemon version %v\n", Name, Version)
+	updateRun := func() {
+		log.Println("Run DNS updater...")
+		if err := conf.Run(); err != nil {
+			log.Fatalf("[ERROR] %v\n", err)
+		}
+	}
+
+	// first run
+	updateRun()
+
+	// create cron
+	log.Println(fmt.Sprintf("Starting CRON based loop (%s)...", opts.UpdateTime))
+
+	cron := cron.New()
+	cron.AddFunc(opts.UpdateTime, updateRun)
 	cron.Start()
 	s := <-c
 	log.Printf("Got signal: %v\n", s)
 	cron.Stop()
 
+	log.Println("Exit")
 	os.Exit(0)
 }

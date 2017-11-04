@@ -1,2 +1,3 @@
 go-azure-dns-sync
 example
+*.json

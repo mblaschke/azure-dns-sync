@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"errors"
+	"log"
+	"fmt"
 )
 
 type AzureConfiguration struct {
@@ -19,6 +21,8 @@ type AzureConfiguration struct {
 }
 
 func (config *AzureConfiguration) ReadFromConfig(path string) (error error) {
+	log.Println(fmt.Sprintf("Parsing AZURE configuration from %s", path))
+
 	jsonData, err := ioutil.ReadFile(path)
 	if err != nil {
 		error = err
@@ -51,6 +55,8 @@ func (config *AzureConfiguration) ReadFromConfig(path string) (error error) {
 }
 
 func (config *AzureConfiguration) GetClient() (rc dns.RecordSetsClient, error error) {
+	log.Println("Fetching AZURE service principal token")
+
 	c := map[string]string{
 		"AZURE_CLIENT_ID":       config.AadClientId,
 		"AZURE_CLIENT_SECRET":   config.AadClientSecret,
@@ -66,6 +72,8 @@ func (config *AzureConfiguration) GetClient() (rc dns.RecordSetsClient, error er
 
 	rc = dns.NewRecordSetsClient(c["AZURE_SUBSCRIPTION_ID"])
 	rc.Authorizer = autorest.NewBearerAuthorizer(spt)
+
+	log.Println(" * successfull")
 
 	return
 }
